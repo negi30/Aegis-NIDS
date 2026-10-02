@@ -16,9 +16,8 @@ from src.response.mitigation import defense_system
 
 from src.api.sniffer import BackgroundSniffer
 
-# Setup static and templates
+# Setup templates
 app = FastAPI(title="Aegis-NIDS Security Operations Center API")
-app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 ml_engine._train_dummy_if_needed()
