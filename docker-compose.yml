@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  nids-engine:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - MODEL_CONFIDENCE_THRESHOLD=0.95
+      - ENABLE_ACTIVE_DEFENSE=true
+    volumes:
+      - ./models_saved:/app/models_saved
+      - ./tests:/app/tests
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

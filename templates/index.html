@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis-NIDS | Enterprise SOC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            background-color: #030303; 
+            color: #ffffff;
+            background-image: radial-gradient(circle at 50% 0%, #1a0b05 0%, #030303 50%);
+            background-attachment: fixed;
+        }
+        .premium-panel { 
+            background: #0a0a0a; 
+            border: 1px solid #1f1f1f; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .alert-row { animation: slideIn 0.4s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4a4a4a; }
+        
+        /* Toggle Switch CSS */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+    </style>
+</head>
+<body class="h-screen flex flex-col antialiased">
+    
+    <header class="w-full flex justify-center py-6 px-4 shrink-0">
+        <div class="bg-[#0a0a0a]/80 backdrop-blur-md border border-[#1f1f1f] rounded-full px-8 py-3 flex justify-between items-center w-full max-w-7xl shadow-lg">
+            <div class="flex items-center space-x-3">
+                <div id="status-dot" class="h-2.5 w-2.5 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.8)]"></div>
+                <h1 class="text-xl font-semibold tracking-tight text-white flex items-center gap-2">
+                    Aegis-NIDS <span class="text-xs font-normal text-gray-500 bg-[#1f1f1f] px-2 py-0.5 rounded-full">v2.0 LCCDE</span>
+                </h1>
+            </div>
+            
+            <div class="flex items-center space-x-6">
+                {% if not demo_mode %}
+                <!-- Live Sniffer Toggle -->
+                <div class="flex items-center space-x-3 bg-[#111] px-4 py-1.5 rounded-full border border-[#222]">
+                    <span class="text-sm font-medium text-gray-400">Live Tap</span>
+                    <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="live-toggle" onchange="toggleSniffer(this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out"/>
+                        <label for="live-toggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-600 cursor-pointer transition-colors duration-200 ease-in-out"></label>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 p-4 grid grid-cols-12 gap-6 overflow-hidden max-w-7xl mx-auto w-full pb-8">
+        
+        <!-- Left Col: Threat Feed & Raw Packets -->
+        <div class="col-span-4 flex flex-col gap-4 overflow-hidden h-full">
+            <div class="premium-panel p-6 flex flex-col {% if not demo_mode %}h-3/5{% else %}h-full{% endif %} overflow-hidden relative">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-600 to-transparent opacity-50"></div>
+                <h2 class="text-gray-300 font-medium text-sm mb-4 tracking-widest uppercase flex-shrink-0">Live Threat Feed</h2>
+                <div id="threat-feed" class="flex-1 overflow-y-auto space-y-3 pr-2"></div>
+            </div>
+            
+            {% if not demo_mode %}
+            <div class="premium-panel p-4 flex flex-col h-2/5 overflow-hidden relative bg-[#050505]">
+                <h2 class="text-gray-500 font-medium text-xs tracking-widest uppercase flex-shrink-0 mb-2 font-mono">Terminal: Raw Packets</h2>
+                <div id="packet-feed" class="flex-1 overflow-y-auto pr-2 font-mono text-[10px] text-gray-400 space-y-1">
+                    <div class="text-gray-600">Waiting for Live Tap...</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Middle Col: Explainability -->
+        <div class="col-span-5 premium-panel p-6 flex flex-col h-full relative">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 to-transparent opacity-50"></div>
+            <h2 class="text-gray-300 font-medium text-sm mb-4 tracking-widest uppercase">Explainable AI (TreeSHAP)</h2>
+            <div class="flex-1 flex flex-col items-center justify-center">
+                <div id="shap-target" class="text-center text-gray-600 text-sm font-light w-full h-full flex flex-col items-center justify-center">
+                    Select a threat from the feed to view feature attributions
+                </div>
+                <canvas id="shapChart" class="hidden"></canvas>
+            </div>
+        </div>
+
+        <!-- Right Col: Active Defense & Control -->
+        <div class="col-span-3 premium-panel p-6 flex flex-col h-full overflow-hidden relative">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-red-500 opacity-50"></div>
+            <h2 class="text-gray-300 font-medium text-sm mb-4 tracking-widest uppercase flex-shrink-0">Active IP Bans</h2>
+            
+            <div id="ban-list" class="flex-1 min-h-0 overflow-y-auto space-y-3 mb-6 pr-2">
+                <div class="text-gray-600 text-center mt-4 text-sm font-light">No active bans</div>
+            </div>
+            
+            <!-- Simulator Controls -->
+            <div class="pt-4 flex-shrink-0">
+                <h3 class="text-gray-400 font-medium text-sm mb-3">Simulate Traffic</h3>
+                <div class="grid grid-cols-1 gap-3">
+                    <button onclick="simulate('dos')" class="w-full bg-gradient-to-r from-[#e85d04] to-[#dc2f02] hover:opacity-90 text-white font-medium py-2.5 rounded-full transition-all shadow-[0_0_15px_rgba(232,93,4,0.3)] text-sm">
+                        Simulate SYN Flood
+                    </button>
+                    <button onclick="simulate('portscan')" class="w-full bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] text-gray-300 font-medium py-2.5 rounded-full transition-all text-sm">
+                        Simulate Port Scan
+                    </button>
+                    <button onclick="simulate('normal')" class="w-full bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] text-gray-300 font-medium py-2.5 rounded-full transition-all text-sm">
+                        Generate Normal Traffic
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        let shapChartInstance = null;
+
+        ws.onmessage = function(event) {
+            // Support both old raw JSON string formats and new dictionary typed formats
+            let data;
+            try {
+                data = JSON.parse(event.data);
+            } catch { return; }
+
+            if (data.type === "raw_packet") {
+                handleRawPacket(data);
+            } else if (data.type === "status") {
+                console.log(data.msg);
+                const dot = document.getElementById('status-dot');
+                if (data.msg.includes('ACTIVE')) {
+                    dot.classList.replace('bg-orange-500', 'bg-green-500');
+                    dot.classList.replace('shadow-[0_0_10px_rgba(249,115,22,0.8)]', 'shadow-[0_0_10px_rgba(34,197,94,0.8)]');
+                    dot.classList.add('animate-pulse');
+                } else {
+                    dot.classList.replace('bg-green-500', 'bg-orange-500');
+                    dot.classList.replace('shadow-[0_0_10px_rgba(34,197,94,0.8)]', 'shadow-[0_0_10px_rgba(249,115,22,0.8)]');
+                    dot.classList.remove('animate-pulse');
+                }
+            } else if (data.type === "error") {
+                alert("ERROR: " + data.msg);
+                document.getElementById('live-toggle').checked = false;
+            } else {
+                handleNewFlow(data);
+            }
+        };
+
+        function toggleSniffer(state) {
+            ws.send(JSON.stringify({ action: 'toggle_sniffer', state: state }));
+        }
+
+        function simulate(type) {
+            ws.send(JSON.stringify({ action: 'simulate', type: type }));
+        }
+
+        function handleRawPacket(data) {
+            const feed = document.getElementById('packet-feed');
+            if (feed.innerHTML.includes("Waiting")) feed.innerHTML = "";
+            const el = document.createElement('div');
+            el.innerHTML = `<span class="text-green-500">[${data.proto}]</span> ${data.src} → ${data.dst} <span class="text-gray-500">(${data.len}B)</span>`;
+            feed.prepend(el);
+            if (feed.children.length > 50) feed.lastChild.remove();
+        }
+
+        function handleNewFlow(data) {
+            const feed = document.getElementById('threat-feed');
+            const isThreat = data.prediction !== "Normal";
+            
+            const borderColor = isThreat ? "border-l-red-500" : "border-l-green-500";
+            const badgeBg = isThreat ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-green-500/10 text-green-400 border-green-500/20";
+            
+            const el = document.createElement('div');
+            el.className = `alert-row p-4 rounded-xl bg-[#141414] border border-[#222] border-l-2 ${borderColor} cursor-pointer hover:bg-[#1a1a1a] transition-all group`;
+            
+            let content = `
+            <div class="flex justify-between items-start mb-2">
+                <span class="font-medium text-gray-200 group-hover:text-white transition-colors">${data.src_ip}</span>
+                <span class="text-[10px] text-gray-500 bg-[#0a0a0a] px-2 py-1 rounded border border-[#222]">${data.latency_ms}ms</span>
+            </div>
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-xs px-2 py-0.5 rounded border ${badgeBg}">${data.prediction}</span>
+                <span class="text-xs text-gray-500">Conf: ${data.confidence}%</span>
+            </div>`;
+            
+            if (isThreat) {
+                content += `<div class="text-[11px] text-gray-400 mt-2 truncate">MITRE: ${data.mitre_tactic}</div>`;
+                if (data.mitigation) {
+                    content += `<div class="text-[11px] text-orange-500 mt-1">Action: ${data.mitigation.status}</div>`;
+                }
+            }
+
+            el.innerHTML = content;
+            el.onclick = () => renderShap(data);
+            
+            feed.prepend(el);
+            if (feed.children.length > 10) feed.lastChild.remove();
+            
+            if (isThreat) fetchBans();
+        }
+
+        function renderShap(data) {
+            document.getElementById('shap-target').classList.add('hidden');
+            const ctx = document.getElementById('shapChart');
+            ctx.classList.remove('hidden');
+
+            if (!data.shap_values || data.shap_values.length === 0) {
+                document.getElementById('shap-target').innerHTML = "No SHAP values available for normal traffic.";
+                document.getElementById('shap-target').classList.remove('hidden');
+                ctx.classList.add('hidden');
+                return;
+            }
+
+            const labels = data.shap_values.map(v => v.feature);
+            const impacts = data.shap_values.map(v => v.impact);
+
+            if (shapChartInstance) shapChartInstance.destroy();
+            Chart.defaults.color = '#888';
+            Chart.defaults.font.family = "'Inter', sans-serif";
+            shapChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Feature Impact', data: impacts,
+                        backgroundColor: 'rgba(232, 93, 4, 0.8)', borderColor: 'rgb(232, 93, 4)',
+                        borderWidth: 1, borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true,
+                    scales: { x: { grid: { color: '#1a1a1a' } }, y: { grid: { display: false } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        async function fetchBans() {
+            const res = await fetch('/api/v1/bans');
+            const data = await res.json();
+            const list = document.getElementById('ban-list');
+            list.innerHTML = "";
+            if (data.banned_ips.length === 0) {
+                list.innerHTML = `<div class="text-gray-600 text-center mt-4 text-sm font-light">No active bans</div>`;
+                return;
+            }
+            data.banned_ips.forEach(ban => {
+                list.innerHTML += `
+                <div class="bg-[#141414] border border-[#222] p-3 rounded-xl flex justify-between items-center">
+                    <div><div class="text-sm font-medium text-gray-300">${ban.ip}</div>
+                    <div class="text-[11px] text-gray-500">${ban.reason}</div></div>
+                    <div class="text-xs text-orange-600 bg-orange-600/10 px-2 py-1 rounded">${ban.time_remaining_min}m</div>
+                </div>`;
+            });
+        }
+        fetchBans();
+    </script>
+</body>
+</html>
