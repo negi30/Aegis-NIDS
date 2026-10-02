@@ -1,82 +1,79 @@
 # 🛡️ Aegis-NIDS | Enterprise Hybrid Network Intrusion Detection System
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue?style=flat-square&logo=python)](#)
-[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi)](#)
-[![ML](https://img.shields.io/badge/ML_Engine-XGBoost%20%7C%20LightGBM%20%7C%20IsolationForest-orange?style=flat-square)](#)
-[![Docker](https://img.shields.io/badge/Deployed-Docker%20%26%20Render-blue?style=flat-square&logo=docker)](#)
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688.svg)
+![Machine Learning](https://img.shields.io/badge/ML_Engine-XGBoost_%7C_LightGBM-ff69b4.svg)
+![Networking](https://img.shields.io/badge/Networking-Scapy-F28D1A.svg)
+![Deployed](https://img.shields.io/badge/Deployed-Docker_%7C_Render-2496ED.svg)
 
-> **A production-grade, dual-tier Hybrid Network Intrusion Detection & Prevention System (NIDS/NIPS). Combines an LCCDE Gradient Boosting ensemble for known threats with an unsupervised Zero-Day anomaly engine. Features sub-15ms real-time inference, WebSockets UI, active kernel firewall blocking, and SHAP Explainable AI.**
+**Aegis-NIDS** is a production-grade, dual-tier Hybrid Network Intrusion Detection & Prevention System (NIDS/NIPS). It bridges the gap between raw network data engineering and advanced Machine Learning inference.
 
----
-
-## 🎯 Engineering Highlights (Built for Production)
-
-- **Dual-Tier ML Architecture:** 
-  - **Tier 1 (Known Threats):** Leader Class & Confidence Decision Ensemble (LCCDE) utilizing XGBoost, LightGBM, and CatBoost to detect DoS, PortScans, Brute Force, and Web Exploits with 99.4% F1-score.
-  - **Tier 2 (Zero-Day Threats):** Unsupervised Isolation Forest and Cluster-Labeling K-Means to identify novel zero-day attacks dynamically without prior signatures.
-- **Explainable AI (XAI) & Threat Intel:** Real-time TreeSHAP feature attributions mapped directly to MITRE ATT&CK tactics (e.g., T1498, T1046) to provide instant root-cause analysis for SOC analysts.
-- **High-Performance Inference:** Automated feature extraction (78 CICFlowMeter metrics) and asynchronous model serving via FastAPI achieve **sub-20ms P95 latency** under stress testing.
-- **Active Defense (IPS/SOAR):** Hooks directly into Linux `iptables` and Scapy TCP RST injection for automated, real-time threat neutralization.
-- **Modern SOC Command Center:** Dark-mode, WebSockets-powered dashboard providing live threat feeds, interactive SHAP attribution charts, and IP ban-list management.
+Featuring sub-15ms real-time inference, bidirectional WebSockets, a live network packet tap, active kernel firewall blocking (`iptables`), and SHAP Explainable AI.
 
 ---
 
-## 🚀 Quick Start (One Command)
+## 🏗️ System Architecture
 
-Requires Docker and Docker Compose.
+1. **Live Network Tap (Scapy):** A daemon thread that attaches to the host network interface in promiscuous mode, intercepting live TCP/UDP packets and mathematically aggregating them into conversational flows (tracking bytes, packet rates, and TCP flags).
+2. **Tier-1 Supervised LCCDE Engine:** A gradient boosting ensemble (mocked here with Random Forests) designed to classify known threat signatures (DoS, PortScans, Brute Force, Web Attacks).
+3. **Tier-2 Unsupervised Zero-Day Engine:** An Isolation Forest algorithm that catches mathematically anomalous zero-day traffic that slips past the supervised engine.
+4. **Active Defense (IPS):** An automated mitigation module that formulates and executes OS-level kernel bans (`iptables` / `pfctl`) the moment a threat crosses the confidence threshold.
+5. **WebSocket Dashboard:** A React-style, dark-mode Enterprise SOC dashboard powered by pure Jinja2, TailwindCSS, and FastAPI bidirectional WebSockets.
+
+---
+
+## ⚠️ Important Note: The "Demo Mode" Tradeoff (Architecture vs. Data)
+
+To make this repository instantly testable for recruiters and developers, this project utilizes **Mocked ML Weights**. 
+
+**What is Real:** 
+The architecture is 100% real. The FastAPI routing, the WebSocket streaming, the `Scapy` packet sniffer, the live flow aggregation, and the `iptables` defense mechanism are fully functional and production-ready.
+
+**What is Mocked (The "Toy" Part):**
+Training a real NIDS requires the **CICIDS2017 Dataset** (3,000,000+ rows of raw network traffic) and takes roughly 4 hours of heavy CPU/GPU processing to generate the `.pkl` files. 
+
+Because hiring managers do not want to wait 4 hours to view a portfolio project, the `scripts/train_pipeline.py` script bypasses the 300GB dataset and generates a "Mini Brain" using mathematically distinct dummy arrays (e.g., forcing DoS to be > 100 packets/sec). 
+* **The Caveat:** Because the dummy thresholds are artificially low, running the Live Network Tap on your local machine will likely flag your normal background internet traffic (Netflix, Spotify, Google) as a "PortScan" or "DDoS". 
+* **To make it 100% production-ready:** Simply download the real CICIDS2017 CSV files, point `train_pipeline.py` to them, and let it train for 4 hours.
+
+---
+
+## 💻 How to Run Locally (With Live Network Tapping)
+
+To run this locally and actually intercept your computer's live internet traffic, you must run the server with Administrator (`sudo`) privileges. 
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_GITHUB/Aegis-NIDS.git
-cd Aegis-NIDS
+# 1. Install Dependencies
+pip3 install -r requirements.txt
 
-# Spin up the API, ML Engine, and Web UI
-docker-compose up --build
+# 2. Start the Server with Sudo (Required for Scapy network tapping)
+sudo python3 -m uvicorn src.api.main:app --port 8080
 ```
-> Open your browser to **http://localhost:8000** to access the SOC Dashboard.
+
+* Go to `http://localhost:8080`.
+* Toggle the **"Live Tap"** switch in the top right corner. 
+* You will instantly see your raw background Wi-Fi packets streaming into the bottom-left terminal window, and the ML engine will begin classifying them in real-time.
 
 ---
 
-## 🧪 Testing & MLOps
+## ☁️ Cloud Deployment (Render / Heroku)
 
-Run the automated test suite (Unit Tests, API Contracts, and Throughput Stress Tests):
+Cloud Platform-as-a-Service (PaaS) environments like Render or Heroku run inside locked-down, shared Docker containers. **They strictly block the `sudo` privileges required to run network sniffers.**
 
-```bash
-# Install test requirements
-pip install -r requirements.txt
+If you deploy this project to the cloud, I have implemented an industry-standard **Feature Flag** to gracefully disable the Live Tap and rely purely on the UI Simulator buttons.
 
-# Run standard test suite
-pytest tests/test_api.py -v
+**To deploy cleanly to Render:**
+1. Connect your GitHub repository to Render.
+2. Render will automatically detect the `Dockerfile` and build the container.
+3. In your Render Dashboard, go to **Environment Variables** and add:
+   * **Key:** `CLOUD_DEMO_MODE`
+   * **Value:** `True`
 
-# Run High-Concurrency Stress Test (Asyncio/HTTPX)
-pytest tests/test_stress.py -v -s
-```
+When the server boots, the API will read this environment variable and dynamically hide the "Live Tap" toggle and Raw Packets terminal from the UI, presenting a perfectly clean, simulator-only dashboard for recruiters.
 
 ---
 
-## 🏗️ Architecture
+## 🧠 Explainable AI (XAI)
 
-```
-Raw Packets / PCAP
-       │
-       ▼
-[ Flow Feature Extractor (78 Metrics) ]
-       │
-       ▼
-[ LCCDE Supervised Engine ] ──(Unknown Signature)──▶ [ Unsupervised Isolation Forest ]
-       │                                                         │
-       ▼                                                         ▼
-[ TreeSHAP XAI Explainer & MITRE ATT&CK Mapper ]
-       │
-       ▼
-[ FastAPI Async Server ] ◀──(WebSockets)──▶ [ Live React/JS SOC Dashboard ]
-       │
-       ▼
-[ Active Response Module (IPTables / TCP RST) ]
-```
-
-## 📜 Deployment (Render / Railway)
-
-1. Connect this GitHub repository to Render.
-2. Select **Web Service** using Docker as the environment.
-3. The platform will read the `Dockerfile`, install the heavy ML dependencies (XGBoost/LightGBM/SHAP), and host the WebSockets API live. 
+Cybersecurity analysts cannot trust "black box" algorithms. Aegis-NIDS integrates **TreeSHAP (SHapley Additive exPlanations)**. 
+When you click on any Threat Alert in the dashboard, the UI instantly generates a SHAP Log-Odds bar chart. This mathematically proves exactly *which* network feature (e.g., `Flow IAT Mean` or `Bwd Packet Length`) caused the AI to flag the packet, ensuring 100% auditability.
