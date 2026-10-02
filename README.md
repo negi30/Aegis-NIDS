@@ -5,7 +5,7 @@
 ![Machine Learning](https://img.shields.io/badge/ML_Engine-LCCDE_%7C_IsolationForest-ff69b4.svg)
 ![Networking](https://img.shields.io/badge/Networking-Scapy-F28D1A.svg)
 ![Deployed](https://img.shields.io/badge/Deployed-Docker_%7C_Render-2496ED.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **Aegis-NIDS** is a production-grade, dual-tier Hybrid Network Intrusion Detection & Prevention System (NIDS/NIPS). It bridges the gap between raw network data engineering and advanced Machine Learning inference, providing sub-15ms real-time threat detection and automated kernel-level mitigation.
 
