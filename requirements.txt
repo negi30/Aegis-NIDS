@@ -1,11 +1,14 @@
-fastapi==0.103.1
-uvicorn[standard]==0.23.2
-pydantic==2.3.0
+fastapi
+uvicorn[standard]
+pydantic
 scikit-learn==1.9.1
-shap==0.42.1
-scapy==2.5.0
-pandas==2.1.0
-numpy==2.5.3
+# xgboost==2.0.0     # Commented out for cloud deployment (Cython build issues)
+# lightgbm==4.1.0    # Commented out for cloud deployment
+# catboost==1.2.2    # Commented out for cloud deployment
+shap
+scapy
+pandas
+numpy>=2.1.0
 pytest==7.4.2
 pytest-asyncio==0.21.1
 websockets==11.0.3
