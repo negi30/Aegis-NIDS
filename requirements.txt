@@ -2,9 +2,6 @@ fastapi==0.103.1
 uvicorn[standard]==0.23.2
 pydantic==2.3.0
 scikit-learn==1.9.1
-xgboost==2.0.0
-lightgbm==4.1.0
-catboost==1.2.2
 shap==0.42.1
 scapy==2.5.0
 pandas==2.1.0
