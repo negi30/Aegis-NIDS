@@ -1,4 +1,4 @@
-# 🛡️ Aegis-NIDS | Enterprise Hybrid Network Intrusion Detection System
+# 🛡️ Aegis-NIDS |  Hybrid Network Intrusion Detection System
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688.svg)
